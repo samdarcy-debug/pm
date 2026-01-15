@@ -4,7 +4,7 @@ title: Building AI Agents: Challenges & Best Practices
 type: doc
 status: draft
 team: intelligence
-owner: "[[teams/intelligence/people/adam-smith]]"
+owner: adam-smith
 created: 2025-12-16
 updated: 2025-12-26
 tags: [agents, zap, product-management, best-practices]
