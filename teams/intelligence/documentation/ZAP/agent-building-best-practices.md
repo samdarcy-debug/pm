@@ -7,7 +7,11 @@ team: intelligence
 owner: adam-smith
 created: 2025-12-16
 updated: 2025-12-26
-tags: [agents, zap, product-management, best-practices]
+tags:
+  - agents
+  - zap
+  - product-management
+  - best-practices
 related: []
 ---
 
