@@ -1,0 +1,25 @@
+# Git Configuration for PM Knowledge Repository
+# This config enables automatic rebase on pull/push to prevent "outdated master" errors
+
+[pull]
+    # Always rebase instead of merge when pulling
+    rebase = true
+
+[push]
+    # Automatically set up remote tracking for new branches
+    autoSetupRemote = true
+
+[rebase]
+    # Automatically stash and pop uncommitted changes during rebase
+    autoStash = true
+    # Don't automatically squash commits (preserve commit history)
+    autoSquash = false
+
+[merge]
+    # Use the "ours" strategy for conflicting changes to YAML frontmatter (prefer local)
+    # This prevents metadata conflicts from blocking work
+    conflictstyle = zdiff3
+
+[core]
+    # Ensure consistent line endings across platforms
+    autocrlf = input

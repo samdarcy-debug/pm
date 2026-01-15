@@ -1,0 +1,58 @@
+#!/bin/bash
+# Pre-commit hook: Auto-regenerate CODEOWNERS when person profiles change
+#
+# This hook runs automatically before each commit. If you're committing changes
+# to person profiles (teams/*/_people/*.md), it will:
+# 1. Validate the person profile(s) have all required fields
+# 2. Regenerate .github/CODEOWNERS from all person profiles
+# 3. Auto-stage the updated CODEOWNERS file
+#
+# If validation fails, the commit is blocked until you fix the errors.
+
+# Check if any person profiles are being committed
+if git diff --cached --name-only | grep -q "teams/.*/\_people/.*\.md"; then
+    echo "📝 Person profile changed, validating and regenerating CODEOWNERS..."
+    echo ""
+
+    # Step 1: Validate person profiles
+    echo "🔍 Validating person profiles..."
+    python .automation/scripts/maintenance/validate-person-profiles.py
+
+    if [ $? -ne 0 ]; then
+        echo ""
+        echo "❌ Person profile validation failed!"
+        echo ""
+        echo "Please fix the validation errors above and try committing again."
+        echo ""
+        echo "Common issues:"
+        echo "  - Missing required fields (id, title, type, team, role, github, created, updated)"
+        echo "  - Invalid github username format (must be lowercase alphanumeric + hyphens)"
+        echo "  - type field must be 'person'"
+        echo "  - id field must start with 'person-'"
+        echo ""
+        exit 1
+    fi
+
+    echo "✓ Person profiles are valid"
+    echo ""
+
+    # Step 2: Regenerate CODEOWNERS
+    echo "🔄 Regenerating CODEOWNERS..."
+    python .automation/scripts/maintenance/generate-codeowners.py
+
+    if [ $? -ne 0 ]; then
+        echo ""
+        echo "❌ CODEOWNERS generation failed!"
+        echo "Please check the error above and try again."
+        exit 1
+    fi
+
+    # Step 3: Stage the updated CODEOWNERS
+    git add .github/CODEOWNERS
+    echo "✓ CODEOWNERS updated and staged"
+    echo ""
+    echo "✅ Your commit will include the updated CODEOWNERS file"
+    echo ""
+fi
+
+exit 0

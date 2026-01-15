@@ -1,0 +1,12 @@
+{
+  "name": "pm-knowledge-repo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "PM Knowledge Repository with automatic document formatting",
+  "scripts": {
+    "prepare": "husky install .automation/husky"
+  },
+  "devDependencies": {
+    "husky": "^8.0.0"
+  }
+}

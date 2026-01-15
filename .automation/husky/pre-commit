@@ -1,0 +1,105 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# Fetch latest changes silently to check for remote modifications
+echo "🔄 Checking for remote changes..."
+git fetch origin master --quiet 2>/dev/null || true
+
+# Get all staged markdown files
+STAGED_MD_FILES=$(git diff --cached --name-only --diff-filter=ACM | grep '\.md$' || true)
+
+if [ -n "$STAGED_MD_FILES" ]; then
+  echo "🔍 Checking and formatting markdown files..."
+
+  # Check for potential conflicts before processing
+  CONFLICT_DETECTED=false
+  CONFLICT_FILES=""
+
+  for file in $STAGED_MD_FILES; do
+    # Skip if file doesn't exist (could be a deletion)
+    if [ ! -f "$file" ]; then
+      continue
+    fi
+
+    # Skip meta-documents (they're less likely to have conflicts)
+    if [[ "$file" == _templates/* ]] || [[ "$file" == .claude/skills/* ]] || \
+       [[ "$file" == "README.md" ]] || [[ "$file" == "CLAUDE.md" ]] || \
+       [[ "$file" == ".claude/CLAUDE.md" ]] || \
+       [[ "$file" == */_people/*.md ]] || \
+       [[ "$file" == */README.md && "$file" != teams/* ]]; then
+      continue
+    fi
+
+    # Check if file was modified on remote since last pull
+    LOCAL_HASH=$(git rev-parse HEAD:$file 2>/dev/null)
+    REMOTE_HASH=$(git rev-parse origin/master:$file 2>/dev/null)
+    BASE_HASH=$(git merge-base HEAD origin/master)
+    BASE_FILE_HASH=$(git rev-parse $BASE_HASH:$file 2>/dev/null)
+
+    # If remote hash differs from base, someone else modified it
+    if [ -n "$REMOTE_HASH" ] && [ "$REMOTE_HASH" != "$BASE_FILE_HASH" ] && [ "$LOCAL_HASH" != "$REMOTE_HASH" ]; then
+      CONFLICT_DETECTED=true
+      # Get who last modified it and when
+      LAST_AUTHOR=$(git log origin/master -1 --format="%an" -- "$file" 2>/dev/null || echo "someone")
+      LAST_TIME=$(git log origin/master -1 --format="%ar" -- "$file" 2>/dev/null || echo "recently")
+      CONFLICT_FILES="$CONFLICT_FILES\n  - $file (modified by $LAST_AUTHOR $LAST_TIME)"
+    fi
+  done
+
+  # If conflicts detected, warn user
+  if [ "$CONFLICT_DETECTED" = true ]; then
+    echo ""
+    echo "⚠️  WARNING: These files have been modified remotely since you last pulled:"
+    echo -e "$CONFLICT_FILES"
+    echo ""
+    echo "Continuing may cause merge conflicts when you push."
+    echo ""
+    printf "Would you like to [C]ontinue anyway or [A]bort and pull first? "
+    read -r response
+
+    case "$response" in
+      [Aa]* )
+        echo "❌ Commit aborted. Run 'git pull' or ask Claude Code to pull latest changes, then try committing again."
+        exit 1
+        ;;
+      [Cc]* )
+        echo "✓ Continuing with commit..."
+        ;;
+      * )
+        echo "❌ Commit aborted. Run 'git pull' or ask Claude Code to pull latest changes, then try committing again."
+        exit 1
+        ;;
+    esac
+  fi
+
+  # Run formatter on each staged markdown file
+  for file in $STAGED_MD_FILES; do
+    # Skip if file doesn't exist (could be a deletion)
+    if [ ! -f "$file" ]; then
+      echo "  SKIPPED: $file (file not found)"
+      continue
+    fi
+
+    # Skip meta-documents (templates, skills, root docs, person docs)
+    if [[ "$file" == _templates/* ]] || [[ "$file" == .claude/skills/* ]] || \
+       [[ "$file" == "README.md" ]] || [[ "$file" == "CLAUDE.md" ]] || \
+       [[ "$file" == ".claude/CLAUDE.md" ]] || \
+       [[ "$file" == */_people/*.md ]] || \
+       [[ "$file" == */README.md && "$file" != teams/* ]]; then
+      echo "  SKIPPED: $file (meta-document or person doc)"
+      continue
+    fi
+
+    python .automation/scripts/maintenance/create-metadata.py "$file"
+
+    # Check if formatter failed (person file missing, etc.)
+    if [ $? -ne 0 ]; then
+      exit 1  # Block commit
+    fi
+
+    # Re-stage the formatted file
+    git add "$file"
+  done
+
+  echo "✓ Markdown files formatted and staged"
+fi

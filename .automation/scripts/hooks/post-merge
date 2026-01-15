@@ -1,0 +1,117 @@
+#!/bin/bash
+# Post-merge hook: Automatically promote working_docs to documentation
+#
+# This hook runs automatically after any git merge completes (including PR merges).
+# If the merged commit contains auto-promote metadata in the PR body, it will:
+# 1. Extract the list of files to promote and destination folder
+# 2. Move each file from working_docs to documentation
+# 3. Update frontmatter (updated date, status to "approved")
+# 4. Create a commit with the promoted files
+#
+# The hook is silent if no auto-promote metadata is found.
+
+# Get the most recent commit message (includes PR description for merge commits)
+COMMIT_MSG=$(git log -1 --format=%B)
+
+# Check for auto-promote marker
+if ! echo "$COMMIT_MSG" | grep -q "<!-- auto-promote: true -->"; then
+    exit 0  # No promotion requested, exit silently
+fi
+
+echo ""
+echo "📦 Auto-promotion detected in merge commit"
+echo ""
+
+# Extract metadata using grep/sed
+PROMOTE_FILES=$(echo "$COMMIT_MSG" | grep "<!-- promote-files:" | sed 's/.*promote-files: \(.*\) -->/\1/')
+PROMOTE_TO=$(echo "$COMMIT_MSG" | grep "<!-- promote-to:" | sed 's/.*promote-to: \(.*\) -->/\1/')
+
+# Validate metadata exists
+if [ -z "$PROMOTE_FILES" ] || [ -z "$PROMOTE_TO" ]; then
+    echo "⚠️  Warning: auto-promote metadata incomplete, skipping promotion"
+    echo "   Expected format:"
+    echo "   <!-- promote-files: path1,path2 -->"
+    echo "   <!-- promote-to: destination/folder -->"
+    echo ""
+    exit 0
+fi
+
+echo "📁 Destination: $PROMOTE_TO"
+echo ""
+
+# Get repo root
+REPO_ROOT=$(git rev-parse --show-toplevel)
+SCRIPT_PATH="$REPO_ROOT/.automation/scripts/maintenance/move-to-documentation.py"
+
+# Verify script exists
+if [ ! -f "$SCRIPT_PATH" ]; then
+    echo "❌ Error: move-to-documentation.py not found at $SCRIPT_PATH"
+    echo "   Skipping automatic promotion"
+    echo ""
+    exit 0
+fi
+
+# Track if any files were moved
+MOVED_COUNT=0
+FAILED_COUNT=0
+MOVED_FILES=()
+
+# Process each file
+IFS=',' read -ra FILES <<< "$PROMOTE_FILES"
+for FILE in "${FILES[@]}"; do
+    FILE=$(echo "$FILE" | xargs)  # Trim whitespace
+
+    if [ ! -f "$REPO_ROOT/$FILE" ]; then
+        echo "⚠️  File not found: $FILE (may have been renamed)"
+        FAILED_COUNT=$((FAILED_COUNT + 1))
+        continue
+    fi
+
+    echo "Moving: $FILE"
+
+    if python "$SCRIPT_PATH" "$FILE" "$PROMOTE_TO"; then
+        MOVED_COUNT=$((MOVED_COUNT + 1))
+        MOVED_FILES+=("$FILE")
+    else
+        echo "❌ Failed to move: $FILE"
+        FAILED_COUNT=$((FAILED_COUNT + 1))
+    fi
+    echo ""
+done
+
+# Commit the promotion if any files were moved
+if [ $MOVED_COUNT -gt 0 ]; then
+    # Build commit message with list of moved files
+    COMMIT_MESSAGE="docs: promote $MOVED_COUNT document(s) to documentation folder
+
+Auto-promoted from working_docs after PR approval:
+"
+    for FILE in "${MOVED_FILES[@]}"; do
+        FILENAME=$(basename "$FILE")
+        COMMIT_MESSAGE="$COMMIT_MESSAGE
+- $FILENAME"
+    done
+
+    COMMIT_MESSAGE="$COMMIT_MESSAGE
+
+Co-Authored-By: Claude <noreply@anthropic.com>"
+
+    git add -A
+    git commit -m "$COMMIT_MESSAGE"
+
+    echo "✅ Promoted $MOVED_COUNT document(s) to $PROMOTE_TO"
+    echo ""
+
+    if [ $FAILED_COUNT -gt 0 ]; then
+        echo "⚠️  $FAILED_COUNT document(s) failed to move"
+        echo ""
+    fi
+
+    echo "📝 Promotion commit created automatically"
+    echo ""
+else
+    echo "⚠️  No documents were promoted"
+    echo ""
+fi
+
+exit 0

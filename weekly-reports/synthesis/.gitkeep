@@ -1,0 +1,2 @@
+# This file ensures the synthesis directory is tracked by git
+# Cross-team synthesis reports will be stored in this directory (synthesis-YYYY-MM-DD.md)

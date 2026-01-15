@@ -1,0 +1,10 @@
+# CODEOWNERS - Auto-generated from person profiles
+# DO NOT EDIT MANUALLY - Run .automation/scripts/maintenance/generate-codeowners.py to update
+
+# Global admins - can approve anything in the repo
+* @adam-smith @brett-jacobs @daniel-kong @kristin-gandini @dominik-facher @ken-elwell
+
+# Team-specific ownership
+# Team members can approve changes to their team's folder
+
+/teams/ops/** @brett-jacobs @daniel-kong @sam-darcy
