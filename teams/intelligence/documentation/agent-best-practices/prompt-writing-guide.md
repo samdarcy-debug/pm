@@ -4,7 +4,7 @@ title: Prompt Writing Guide for Product Managers
 type: doc
 status: draft
 team: intelligence
-owner: [[teams\ops\_people\brett-jacobs]]
+owner: "[[teams/ops/_people/brett-jacobs]]"
 created: 2026-01-13
 updated: 2026-01-13
 tags: []
