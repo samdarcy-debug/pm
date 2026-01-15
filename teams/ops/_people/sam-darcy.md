@@ -24,4 +24,4 @@ Product Operations
 
 ## Documents I Own
 
-As a Product Operations specialist, Sam owns foundational infrastructure and process documentation that enables the entire product organization to operate effectively. This includes RFCs defining cross-team workflows and tools, one-pagers proposing operational improvements, canonical personas and JTBD frameworks used by all teams, shared glossaries and terminology standards, product lifecycle and release process documentation, analytics and metrics frameworks, and templates that standardize how teams create PRDs, weekly reports, and other artifacts. These documents live primarily in `teams/ops/` and represent the connective tissue that allows distributed product teams to maintain consistency, share knowledge, and operate with common language and practices.
+Actually, I don't own any documents.
